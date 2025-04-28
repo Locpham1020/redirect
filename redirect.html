@@ -2,9 +2,10 @@
 <html>
 <head>
   <title>Chuyển hướng</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
     // Log cho debugging
-    console.log("Redirect page loaded");
+    console.log("Redirect page loaded:", window.location.href);
     
     // Phân tích URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -20,7 +21,12 @@
     // Kiểm tra URL hợp lệ
     function isValidUrl(url) {
       try {
-        return url && url.length > 10 && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('shopee://'));
+        return url && url.length > 5 && (
+          url.startsWith('http://') || 
+          url.startsWith('https://') || 
+          url.startsWith('shopee://') ||
+          url.startsWith('tiktok://')
+        );
       } catch {
         return false;
       }
@@ -44,7 +50,7 @@
         document.getElementById('status').textContent = "Lỗi: URL đích không hợp lệ";
         document.getElementById('error-detail').textContent = "URL nhận được: " + targetUrl;
         document.getElementById('error-message').style.display = 'block';
-        document.getElementById('target-btn').style.display = 'none';
+        document.getElementById('redirect-info').style.display = 'none';
         return;
       }
       
@@ -65,7 +71,12 @@
       // Kiểm tra URL đích hợp lệ
       if (isValidUrl(targetUrl)) {
         try {
-          const domain = new URL(targetUrl).hostname || targetUrl.split("//")[1].split("/")[0];
+          let domain;
+          if (targetUrl.startsWith('http')) {
+            domain = new URL(targetUrl).hostname;
+          } else {
+            domain = targetUrl.split('://')[0] + " app";
+          }
           document.getElementById('target-domain').textContent = domain;
           document.getElementById('target-url').textContent = targetUrl;
         } catch(e) {
@@ -95,6 +106,7 @@
     .content {
       max-width: 90%;
       width: 500px;
+      padding: 20px;
     }
     .loader {
       border: 4px solid #f3f3f3;

@@ -2,21 +2,30 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Đang chuyển hướng…</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đang chuyển hướng...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }
-    #open-browser-btn { 
-      padding: 12px 20px; 
-      background: #007bff; 
-      color: #fff; 
-      border-radius: 8px; 
-      font-size: 18px;
-      text-decoration: none;
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 100px;
+      padding: 20px;
+    }
+    #open-browser-btn {
       display: none;
+      padding: 14px 24px;
+      background-color: #ff5722;
+      color: #fff;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
       margin-top: 20px;
     }
-    #notice { font-size: 18px; color: #333; }
+    #notice {
+      font-size: 20px;
+      color: #333;
+    }
   </style>
 </head>
 <body>
@@ -24,28 +33,23 @@
   <a id="open-browser-btn" href="#" target="_blank">Mở ngoài trình duyệt</a>
 
   <script>
+    const targetUrl = 'https://s.shopee.vn/8KcXMfNtaT'; // 👉👉 Link Shopee của bạn
+
     function isInAppBrowser() {
-      var ua = navigator.userAgent || '';
+      var ua = navigator.userAgent || navigator.vendor || window.opera;
       return /(FBAN|FBAV|Instagram|Line|Zalo|TikTok|Shopee|Snapchat|Pinterest)/i.test(ua);
     }
 
-    (function(){
-      var params = new URLSearchParams(window.location.search);
-      var pid = params.get('pid');
-      var aff = params.get('aff');
-
-      var finalUrl = 'https://affiliate-network.com/product/' + pid + '?aff=' + aff; 
-      // 👆👆👆 Thay link affiliate gốc của bạn vào đây!
-
+    window.addEventListener('DOMContentLoaded', function() {
       if (isInAppBrowser()) {
-        document.getElementById('notice').innerText = "Bạn đang duyệt trong App. Vui lòng bấm nút bên dưới để tiếp tục.";
+        document.getElementById('notice').innerText = "Bạn đang mở từ trong App. Vui lòng bấm nút bên dưới để tiếp tục.";
         var openBtn = document.getElementById('open-browser-btn');
-        openBtn.href = finalUrl;
+        openBtn.href = targetUrl;
         openBtn.style.display = 'inline-block';
       } else {
-        window.location.href = finalUrl;
+        window.location.href = targetUrl;
       }
-    })();
+    });
   </script>
 </body>
 </html>

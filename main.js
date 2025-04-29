@@ -133,8 +133,9 @@
           if (element.tagName === 'A') {
             element.href = url;
             element.setAttribute('data-platform', platform);
+            element.setAttribute('target', '_blank'); // Thêm dòng này
             element.onclick = function(e) {
-              ProductApp.trackingManager.logClick(container.id, platform);
+            ProductApp.trackingManager.logClick(container.id, platform);
             };
             updatedPlatforms[platform] = true;
           } else if (element.parentNode && element.parentNode.tagName !== 'A') {
@@ -142,13 +143,14 @@
             wrapper.href = url;
             wrapper.style.cssText = 'cursor:pointer;text-decoration:none;color:inherit;';
             wrapper.setAttribute('data-platform', platform);
+            wrapper.setAttribute('target', '_blank'); // Thêm dòng này
             wrapper.onclick = function(e) {
               ProductApp.trackingManager.logClick(container.id, platform);
-            };
-            element.parentNode.replaceChild(wrapper, element);
-            wrapper.appendChild(element);
-            updatedPlatforms[platform] = true;
-          }
+          };
+          element.parentNode.replaceChild(wrapper, element);
+          wrapper.appendChild(element);
+          updatedPlatforms[platform] = true;
+        }
         }
         
         return updatedPlatforms.shopee || updatedPlatforms.tiktok;

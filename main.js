@@ -1,6 +1,6 @@
 /**
  * Product Display & Tracking Application
- * Version: 2.0.0
+ * Version: 3.0.0
  * Handles data loading, UI updates, and click tracking
  */
 
@@ -15,12 +15,13 @@
   const ProductApp = {
     // Cấu hình
     config: {
-      dataUrl: 'https://raw.githubusercontent.com/Locpham1020/redirect/main/data.json',
+      // *** THAY ĐỔI dataUrl THÀNH URL WEB APP CỦA BẠN ***
+      dataUrl: 'https://script.google.com/macros/s/AKfycbyCaZ6lfRXdHSSD-VJLU6CF_ZiD1Qi--flHAYVIM8SFDf8dJaujBulFPUgQY1ePlT9ZVw/exec',
       loggerUrl: 'https://script.google.com/macros/s/AKfycbwiTGvwlmbqReewb4XXs5wJ3txCFrHk4HKaqNVBCF81U-Oly1H_Hey-tIFUq1uT535kLA/exec',
-      cacheKey: 'product_data_v2',
-      cacheExpiration: 2 * 60 * 1000, // 2 phút
-      pollInterval: 20 * 1000, // Kiểm tra dữ liệu mới mỗi 20 giây
-      version: '2.0.0',
+      cacheKey: 'product_data_v3',
+      cacheExpiration: 1 * 60 * 1000, // 1 phút 
+      pollInterval: 10 * 1000, // Kiểm tra dữ liệu mới mỗi 10 giây
+      version: '3.0.0',
       debug: true
     },
 
@@ -34,10 +35,10 @@
           const cached = localStorage.getItem(ProductApp.config.cacheKey);
           if (cached) {
             const parsedData = JSON.parse(cached);
-            const cacheTime = parsedData._timestamp || 0;
+            const cacheTime = parsedData._metadata?.updated_at || 0;
             
             // Kiểm tra hết hạn
-            if (Date.now() - cacheTime < ProductApp.config.cacheExpiration) {
+            if (Date.now() - new Date(cacheTime).getTime() < ProductApp.config.cacheExpiration) {
               this.data = parsedData;
               return true;
             }
@@ -51,14 +52,18 @@
       // Lưu dữ liệu vào cache
       saveToCache: function(data) {
         try {
-          data._timestamp = Date.now();
+          if (!data._metadata) {
+            data._metadata = {
+              updated_at: new Date().toISOString()
+            };
+          }
           localStorage.setItem(ProductApp.config.cacheKey, JSON.stringify(data));
         } catch (e) {
           console.error('Lỗi khi lưu cache:', e);
         }
       },
 
-      // Tải dữ liệu từ GitHub
+      // Tải dữ liệu từ Google Sheet Web App
       loadFromServer: function() {
         // Thêm timestamp và random để tránh cache hoàn toàn
         const cacheBuster = Date.now() + Math.random().toString(36).substring(2, 15);

@@ -1,6 +1,6 @@
 /**
  * Product Display & Tracking Application
- * Version: 1.0.2
+ * Version: 2.0.0
  * Handles data loading, UI updates, and click tracking
  */
 
@@ -17,10 +17,10 @@
     config: {
       dataUrl: 'https://raw.githubusercontent.com/Locpham1020/redirect/main/data.json',
       loggerUrl: 'https://script.google.com/macros/s/AKfycbwiTGvwlmbqReewb4XXs5wJ3txCFrHk4HKaqNVBCF81U-Oly1H_Hey-tIFUq1uT535kLA/exec',
-      cacheKey: 'product_data_v1.0.2',
-      cacheExpiration: 3 * 60 * 1000, // 3 phút
-      pollInterval: 30 * 1000, // Kiểm tra dữ liệu mới mỗi 30 giây
-      version: '1.0.2',
+      cacheKey: 'product_data_v2',
+      cacheExpiration: 2 * 60 * 1000, // 2 phút
+      pollInterval: 20 * 1000, // Kiểm tra dữ liệu mới mỗi 20 giây
+      version: '2.0.0',
       debug: true
     },
 
@@ -60,8 +60,9 @@
 
       // Tải dữ liệu từ GitHub
       loadFromServer: function() {
-        // Thêm timestamp để tránh cache
-        return fetch(ProductApp.config.dataUrl + '?t=' + Date.now())
+        // Thêm timestamp và random để tránh cache hoàn toàn
+        const cacheBuster = Date.now() + Math.random().toString(36).substring(2, 15);
+        return fetch(ProductApp.config.dataUrl + '?t=' + cacheBuster)
           .then(response => response.json())
           .then(data => {
             this.data = data;
@@ -198,6 +199,14 @@
           }
         }
         
+        // FORCE thêm target="_blank" cho tất cả links
+        setTimeout(() => {
+          container.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
+            link.setAttribute('target', '_blank');
+            if (ProductApp.config.debug) console.log('FORCE set target=_blank cho:', link.href);
+          });
+        }, 100);
+        
         return updated;
       },
 
@@ -248,6 +257,11 @@
         });
         
         console.log(`Đã cập nhật ${updatedCount}/${containerIds.length} containers`);
+        
+        // GLOBAL HACK: Force target="_blank" cho toàn bộ trang
+        document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
+          link.setAttribute('target', '_blank');
+        });
       }
     },
 
@@ -349,6 +363,16 @@
             console.error('Lỗi polling:', error);
           });
       }, this.config.pollInterval);
+      
+      // Force kiểm tra links mỗi 10 giây
+      setInterval(() => {
+        document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
+          if (link.target !== '_blank') {
+            link.setAttribute('target', '_blank');
+            if (this.config.debug) console.log('Đã phát hiện và sửa link không có target=_blank:', link.href);
+          }
+        });
+      }, 10000);
     }
   };
 

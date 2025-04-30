@@ -1,382 +1,665 @@
 /**
- * Product Display & Tracking Application
- * Version: 3.0.0
+ * Product Display & Tracking Application - Simplified Version
+ * Version: 4.2.0 - PHIÊN BẢN ĐƠN GIẢN HÓA
+ * Cập nhật: Sử dụng data.js thay vì API, bỏ chức năng logging
  */
 
 (function() {
   // Ngăn chạy nhiều lần
-  if (window.ProductApp) {
-    console.log("ProductApp đã được khởi tạo");
+  if (window.ProductApp && window.ProductApp.initialized) {
+    console.log("ProductApp đã được khởi tạo - Version " + (window.ProductApp.config ? window.ProductApp.config.version : "unknown"));
     return;
   }
 
-  // Ứng dụng chính
+  // Đối tượng ứng dụng chính
   const ProductApp = {
-    // Cấu hình
+    // Thiết lập
     config: {
-      // *** URL WEB APP TỪNG BƯỚC 2 ***
-      dataUrl: 'https://script.google.com/macros/s/AKfycbyCaZiTfkXdHGSO-YDLUbCF_ziDiQi-_flnAVVIMBSPD7&4JarjBulFPUgMYieP1T9ZYw/exec',
-      loggerUrl: 'https://script.google.com/macros/s/AKfycbwiTGvwlmbqReewb4XXs5wJ3txCFrHk4HKaqNVBCF81U-Oly1H_Hey-tIFUq1uT535kLA/exec',
-      cacheKey: 'product_data_v3',
-      cacheExpiration: 1 * 60 * 1000, // 1 phút 
-      pollInterval: 10 * 1000, // Kiểm tra dữ liệu mới mỗi 10 giây
-      version: '3.0.0',
-      debug: true
+      dataUrl: null, // Không sử dụng API
+      useLocalData: true, // Sử dụng dữ liệu từ data.js
+      cacheKey: 'product_data_v4_2',
+      version: '4.2.0',
+      debug: true,
+      initialized: false
     },
 
-    // Quản lý dữ liệu
+    // Xử lý dữ liệu
     dataManager: {
       data: null,
+      lastChecktime: 0,
 
-      // Tải dữ liệu từ cache
-      loadFromCache: function() {
+      // Khởi tạo dữ liệu từ data.js
+      initData: function() {
         try {
-          const cached = localStorage.getItem(ProductApp.config.cacheKey);
-          if (cached) {
-            const parsedData = JSON.parse(cached);
-            const cacheTime = parsedData._metadata?.updated_at || 0;
+          if (typeof PRODUCT_DATA !== 'undefined') {
+            this.data = PRODUCT_DATA;
+            this.lastChecktime = Date.now();
             
-            // Kiểm tra hết hạn
-            if (Date.now() - new Date(cacheTime).getTime() < ProductApp.config.cacheExpiration) {
-              this.data = parsedData;
-              return true;
+            if (ProductApp.config.debug) {
+              console.log('Đã tải dữ liệu từ PRODUCT_DATA:');
+              const containers = Object.keys(this.data).filter(k => !k.startsWith('_'));
+              console.log('- Số lượng container:', containers.length);
+              console.log('- IDs:', containers.join(', '));
             }
+            
+            return true;
+          } else {
+            console.error('PRODUCT_DATA không được định nghĩa! Vui lòng thêm data.js trước main.js');
+            return false;
           }
         } catch (e) {
-          console.error('Lỗi khi đọc cache:', e);
+          console.error('Lỗi khi khởi tạo dữ liệu:', e);
+          return false;
         }
-        return false;
-      },
-
-      // Lưu dữ liệu vào cache
-      saveToCache: function(data) {
-        try {
-          if (!data._metadata) {
-            data._metadata = {
-              updated_at: new Date().toISOString()
-            };
-          }
-          localStorage.setItem(ProductApp.config.cacheKey, JSON.stringify(data));
-        } catch (e) {
-          console.error('Lỗi khi lưu cache:', e);
-        }
-      },
-
-      // Tải dữ liệu từ Google Sheet Web App
-      loadFromServer: function() {
-        // Thêm timestamp và random để tránh cache
-        const cacheBuster = Date.now() + Math.random().toString(36).substring(2, 15);
-        return fetch(ProductApp.config.dataUrl + '?t=' + cacheBuster)
-          .then(response => response.json())
-          .then(data => {
-            this.data = data;
-            this.saveToCache(data);
-            return data;
-          })
-          .catch(error => {
-            console.error('Lỗi khi tải dữ liệu:', error);
-            throw error;
-          });
       },
 
       // Lấy dữ liệu cho container
       getDataForContainer: function(containerId) {
-        return this.data && this.data[containerId];
+        if (!this.data) return null;
+        if (!containerId) return null;
+        
+        // Chuyển về string và lowercase
+        containerId = String(containerId).toLowerCase().trim();
+        
+        // Tìm trực tiếp
+        if (this.data[containerId]) {
+          return this.data[containerId];
+        }
+        
+        // Tìm không phân biệt chữ hoa/thường
+        for (const id in this.data) {
+          if (id.toLowerCase() === containerId && !id.startsWith('_')) {
+            return this.data[id];
+          }
+        }
+        
+        return null;
+      },
+      
+      // In ra console toàn bộ dữ liệu để debug
+      debugData: function() {
+        if (!this.data) {
+          console.log('Không có dữ liệu!');
+          return;
+        }
+        
+        const containers = Object.keys(this.data).filter(k => !k.startsWith('_'));
+        console.log(`=== DỮ LIỆU HIỆN TẠI (${containers.length} containers) ===`);
+        
+        containers.forEach(id => {
+          const container = this.data[id];
+          console.log(`- Container ${id}:`);
+          console.log(`  Money: ${container.money}`);
+          console.log(`  Link Shopee: ${container.link_shopee}`);
+          console.log(`  Link TikTok: ${container.link_tiktok}`);
+        });
+        
+        if (this.data._metadata) {
+          console.log('=== METADATA ===');
+          console.log('- Thời gian cập nhật:', this.data._metadata.updated_at);
+          console.log('- Phiên bản:', this.data._metadata.version);
+        }
       }
     },
 
-    // Quản lý UI
+    // Xử lý giao diện
     uiManager: {
-      // Cập nhật giá trị money
+      // Cập nhật giá trị
       updateMoneyValue: function(container, value) {
-        if (!value) return false;
+        if (!value && value !== 0) return false;
         
-        // Mở rộng tìm kiếm nhiều loại phần tử
-        const titleElements = container.querySelectorAll('.icon-text-title, [class*="title"], .title, .price, .amount, span, div, p');
-        for (let i = 0; i < titleElements.length; i++) {
-          const element = titleElements[i];
-          const text = element.textContent || '';
-          if (text.includes('Title') || text.includes('$') || 
-              text.includes('VND') || text.includes('Giá') || 
-              text.includes('Price')) {
-            element.textContent = value + ' VND';
-            if (ProductApp.config.debug) console.log('Đã cập nhật giá:', value, 'cho container:', container.id);
-            return true;
-          }
-        }
-        
-        // Nếu không tìm thấy, thử tìm phần tử đầu tiên
-        const firstSpan = container.querySelector('span');
-        if (firstSpan) {
-          firstSpan.textContent = value + ' VND';
-          if (ProductApp.config.debug) console.log('Fallback: Đã cập nhật giá cho phần tử đầu tiên');
-          return true;
-        }
-        
-        if (ProductApp.config.debug) console.warn('Không tìm thấy phần tử để cập nhật giá cho container:', container.id);
-        return false;
-      },
-
-      // Xác định platform từ hình ảnh
-      detectPlatformFromElement: function(element) {
-        // Kiểm tra innerHTML, src, alt, class, hoặc bất kỳ thuộc tính nào
-        const html = (element.outerHTML || '').toLowerCase();
-        const src = (element.src || '').toLowerCase();
-        const alt = (element.alt || '').toLowerCase();
-        const className = (element.className || '').toLowerCase();
-        
-        if (html.includes('shopee') || src.includes('shopee') || 
-            alt.includes('shopee') || className.includes('shopee')) {
-          return 'shopee';
-        }
-        
-        if (html.includes('tiktok') || src.includes('tiktok') || 
-            alt.includes('tiktok') || className.includes('tiktok')) {
-          return 'tiktok';
-        }
-        
-        // Kiểm tra các phần tử con
-        const img = element.querySelector('img');
-        if (img) {
-          const imgSrc = (img.src || '').toLowerCase();
-          const imgAlt = (img.alt || '').toLowerCase();
+        try {
+          // Định dạng giá trị
+          let formattedPrice;
           
-          if (imgSrc.includes('shopee') || imgAlt.includes('shopee')) return 'shopee';
-          if (imgSrc.includes('tiktok') || imgAlt.includes('tiktok')) return 'tiktok';
-        }
-        
-        return 'unknown';
-      },
-
-      // Cập nhật link cho các platform
-      updatePlatformLinks: function(container, data) {
-        let updated = false;
-        
-        // Bước 1: Tìm tất cả các phần tử có thể chứa shopee/tiktok
-        const allElements = container.querySelectorAll('*');
-        
-        // Bước 2: Xác định platform cho từng phần tử
-        for (let i = 0; i < allElements.length; i++) {
-          const element = allElements[i];
-          const platform = this.detectPlatformFromElement(element);
-          
-          if (platform === 'unknown') continue;
-          
-          // Lấy URL tương ứng
-          const url = platform === 'shopee' ? data.link_shopee : data.link_tiktok;
-          if (!url) continue;
-          
-          // Bước 3: Gắn link
-          if (element.tagName === 'A') {
-            // Nếu đã là link, chỉ cập nhật href
-            element.href = url;
-            element.setAttribute('target', '_blank'); // Mở trong tab mới
-            element.onclick = function(e) {
-              ProductApp.trackingManager.logClick(container.id, platform);
-            };
-            updated = true;
-          } 
-          else if (element.parentNode && element.parentNode.tagName !== 'A') {
-            // Nếu không phải link và không nằm trong link, tạo wrapper
-            const wrapper = document.createElement('a');
-            wrapper.href = url;
-            wrapper.setAttribute('target', '_blank'); // Mở trong tab mới
-            wrapper.style.cssText = 'cursor:pointer;text-decoration:none;color:inherit;';
-            wrapper.onclick = function(e) {
-              e.stopPropagation(); // Ngăn event bubbling
-              ProductApp.trackingManager.logClick(container.id, platform);
-            };
-            
+          // Nếu đã có định dạng số (150,000), sử dụng trực tiếp
+          if (typeof value === 'string' && value.includes(',')) {
+            formattedPrice = value + ' VND';
+          } else {
             try {
-              // Thay thế phần tử bằng wrapper và thêm phần tử vào wrapper
-              element.parentNode.replaceChild(wrapper, element);
-              wrapper.appendChild(element);
-              updated = true;
-            } catch (err) {
-              console.error('Lỗi khi tạo link cho', platform, err);
+              // Thử chuyển đổi sang số
+              const numValue = parseInt(value);
+              // Định dạng với dấu phẩy ngăn cách hàng nghìn
+              formattedPrice = numValue.toLocaleString('vi-VN') + ' VND';
+            } catch(e) {
+              // Nếu lỗi, sử dụng giá trị gốc
+              formattedPrice = value + ' VND';
             }
           }
+          
+          // Cách 1: Tìm phần tử giá theo class và nội dung
+          const priceSelectors = [
+            '.icon-text-title', '[class*="title"]', '.title', '.price', 
+            '.amount', '[class*="price"]', 'span', 'div', 'p'
+          ];
+          
+          // Thử tất cả các selector
+          for (const selector of priceSelectors) {
+            const elements = container.querySelectorAll(selector);
+            
+            for (let i = 0; i < elements.length; i++) {
+              const element = elements[i];
+              const text = element.textContent || '';
+              
+              if (text.includes('Title') || text.includes('$') || 
+                  text.includes('VND') || text.includes('Giá') || 
+                  text.includes('Price') || /\d{3,}/.test(text)) {
+                
+                element.textContent = formattedPrice;
+                if (ProductApp.config.debug) console.log(`Đã cập nhật giá: ${formattedPrice} cho container: ${container.id}`);
+                return true;
+              }
+            }
+          }
+          
+          // Cách 2: Tìm phần tử đầu tiên là span
+          const firstSpan = container.querySelector('span:first-child, .price, .amount, [class*="price"]');
+          if (firstSpan) {
+            firstSpan.textContent = formattedPrice;
+            if (ProductApp.config.debug) console.log(`Fallback 1: Đã cập nhật giá cho phần tử đầu tiên trong ${container.id}`);
+            return true;
+          }
+          
+          // Cách 3: Tìm bất kỳ phần tử span, p, div nào
+          const anyText = container.querySelector('span, p, div');
+          if (anyText) {
+            anyText.textContent = formattedPrice;
+            if (ProductApp.config.debug) console.log(`Fallback 2: Đã cập nhật giá cho phần tử bất kỳ trong ${container.id}`);
+            return true;
+          }
+          
+          if (ProductApp.config.debug) console.warn(`Không tìm thấy phần tử để cập nhật giá cho container: ${container.id}`);
+          return false;
+        } catch (error) {
+          console.error(`Lỗi khi cập nhật giá cho ${container.id}:`, error);
+          return false;
         }
-        
-        // FORCE thêm target="_blank" cho tất cả links
-        setTimeout(() => {
+      },
+
+      // Xác định platform từ phần tử
+      detectPlatformFromElement: function(element) {
+        try {
+          // Lấy tất cả thông tin từ phần tử
+          const html = (element.outerHTML || '').toLowerCase();
+          const src = (element.src || '').toLowerCase();
+          const alt = (element.alt || '').toLowerCase();
+          const className = (element.className || '').toLowerCase();
+          const id = (element.id || '').toLowerCase();
+          const text = (element.textContent || '').toLowerCase();
+          
+          // Kiểm tra Shopee
+          if (html.includes('shopee') || src.includes('shopee') || 
+              alt.includes('shopee') || className.includes('shopee') ||
+              id.includes('shopee') || html.includes('shop') ||
+              text.includes('shopee') || text.includes('shop')) {
+            return 'shopee';
+          }
+          
+          // Kiểm tra TikTok
+          if (html.includes('tiktok') || src.includes('tiktok') || 
+              alt.includes('tiktok') || className.includes('tiktok') ||
+              id.includes('tiktok') || html.includes('tik') ||
+              text.includes('tiktok') || text.includes('tik tok')) {
+            return 'tiktok';
+          }
+          
+          // Tìm trong các phần tử con
+          const imgElements = element.querySelectorAll('img');
+          for (let i = 0; i < imgElements.length; i++) {
+            const img = imgElements[i];
+            const imgSrc = (img.src || '').toLowerCase();
+            const imgAlt = (img.alt || '').toLowerCase();
+            const imgClass = (img.className || '').toLowerCase();
+            
+            if (imgSrc.includes('shopee') || imgAlt.includes('shopee') || imgClass.includes('shopee') ||
+                imgSrc.includes('shop') || imgAlt.includes('shop')) {
+              return 'shopee';
+            }
+            
+            if (imgSrc.includes('tiktok') || imgAlt.includes('tiktok') || imgClass.includes('tiktok') ||
+                imgSrc.includes('tik') || imgAlt.includes('tik')) {
+              return 'tiktok';
+            }
+          }
+          
+          return 'unknown';
+        } catch (error) {
+          console.error('Lỗi khi phát hiện platform:', error);
+          return 'unknown';
+        }
+      },
+
+      // Cập nhật links cho các platform
+      updatePlatformLinks: function(container, data) {
+        try {
+          let updated = false;
+          
+          // Kiểm tra dữ liệu đầu vào
+          if (!data.link_shopee && !data.link_tiktok) {
+            console.warn(`Container ${container.id}: Thiếu cả link Shopee và TikTok`);
+            return false;
+          }
+          
+          // Bước 1: Tìm tất cả các phần tử
+          const allElements = container.querySelectorAll('*');
+          const shopeeElements = [];
+          const tiktokElements = [];
+          
+          // Tìm tất cả phần tử Shopee và TikTok
+          allElements.forEach(element => {
+            const platform = this.detectPlatformFromElement(element);
+            if (platform === 'shopee') {
+              shopeeElements.push(element);
+            } else if (platform === 'tiktok') {
+              tiktokElements.push(element);
+            }
+          });
+          
+          if (ProductApp.config.debug) {
+            console.log(`Container ${container.id}: Tìm thấy ${shopeeElements.length} phần tử Shopee và ${tiktokElements.length} phần tử TikTok`);
+          }
+          
+          // Xử lý elements Shopee
+          if (data.link_shopee) {
+            shopeeElements.forEach(element => {
+              this.makeElementClickable(element, data.link_shopee, 'shopee', container.id);
+              updated = true;
+            });
+          }
+          
+          // Xử lý elements TikTok
+          if (data.link_tiktok) {
+            tiktokElements.forEach(element => {
+              this.makeElementClickable(element, data.link_tiktok, 'tiktok', container.id);
+              updated = true;
+            });
+          }
+          
+          // Bước 3: Đảm bảo tất cả links đều có target="_blank"
           container.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
             link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener');
           });
-        }, 100);
-        
-        return updated;
+          
+          return updated;
+        } catch (error) {
+          console.error(`Lỗi khi cập nhật links cho ${container.id}:`, error);
+          return false;
+        }
+      },
+      
+      // Làm cho element có thể click
+      makeElementClickable: function(element, url, platform, containerId) {
+        try {
+          // Trường hợp 1: Element là thẻ A
+          if (element.tagName === 'A') {
+            element.href = url;
+            element.setAttribute('target', '_blank');
+            element.setAttribute('rel', 'noopener');
+            
+            if (!element.hasAttribute('data-platform')) {
+              element.setAttribute('data-platform', platform);
+              element.setAttribute('data-container', containerId);
+              
+              if (ProductApp.config.debug) console.log(`Đã cập nhật link ${platform} cho thẻ A: ${url}`);
+            }
+            return true;
+          }
+          
+          // Trường hợp 2: Kiểm tra nếu đã nằm trong link
+          let parentLink = null;
+          let parent = element.parentNode;
+          
+          while (parent && parent !== document.body) {
+            if (parent.tagName === 'A') {
+              parentLink = parent;
+              break;
+            }
+            parent = parent.parentNode;
+          }
+          
+          // Nếu đã nằm trong link, cập nhật link đó
+          if (parentLink) {
+            parentLink.href = url;
+            parentLink.setAttribute('target', '_blank');
+            parentLink.setAttribute('rel', 'noopener');
+            
+            if (!parentLink.hasAttribute('data-platform')) {
+              parentLink.setAttribute('data-platform', platform);
+              parentLink.setAttribute('data-container', containerId);
+              
+              if (ProductApp.config.debug) console.log(`Đã cập nhật link ${platform} cho thẻ A cha: ${url}`);
+            }
+            return true;
+          }
+          
+          // Trường hợp 3: Cần tạo wrapper link mới
+          if (element.parentNode) {
+            // Kiểm tra xem phần tử có thể wrap được không
+            try {
+              const wrapper = document.createElement('a');
+              wrapper.href = url;
+              wrapper.setAttribute('target', '_blank');
+              wrapper.setAttribute('rel', 'noopener');
+              wrapper.setAttribute('data-platform', platform);
+              wrapper.setAttribute('data-container', containerId);
+              wrapper.style.cssText = 'cursor:pointer;text-decoration:none;color:inherit;display:inline-block;';
+              
+              // Thay thế phần tử bằng wrapper
+              element.parentNode.insertBefore(wrapper, element);
+              wrapper.appendChild(element);
+              
+              if (ProductApp.config.debug) console.log(`Đã tạo wrapper link ${platform}: ${url}`);
+              return true;
+            } catch (err) {
+              console.error(`Lỗi khi tạo wrapper cho ${platform}:`, err);
+              
+              // Fallback: Thêm xử lý click trực tiếp lên phần tử
+              element.style.cursor = 'pointer';
+              element.setAttribute('data-url', url);
+              element.setAttribute('data-platform', platform);
+              element.setAttribute('data-container', containerId);
+              
+              // Thêm click handler
+              element.addEventListener('click', function() {
+                window.open(url, '_blank');
+              });
+              
+              if (ProductApp.config.debug) console.log(`Đã thêm click handler trực tiếp cho ${platform}`);
+              return true;
+            }
+          }
+          
+          return false;
+        } catch (error) {
+          console.error(`Lỗi khi làm phần tử ${platform} clickable:`, error);
+          return false;
+        }
       },
 
       // Cập nhật một container
       updateContainer: function(containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) {
-          if (ProductApp.config.debug) console.log(`Không tìm thấy container: ${containerId}`);
+        try {
+          // Tìm container
+          const container = document.getElementById(containerId);
+          if (!container) {
+            if (ProductApp.config.debug) console.log(`Không tìm thấy container: ${containerId}`);
+            return false;
+          }
+          
+          // Lấy dữ liệu
+          const data = ProductApp.dataManager.getDataForContainer(containerId);
+          if (!data) {
+            if (ProductApp.config.debug) console.log(`Không có dữ liệu cho container: ${containerId}`);
+            return false;
+          }
+          
+          let updated = false;
+          
+          // Cập nhật giá
+          if (this.updateMoneyValue(container, data.money)) {
+            updated = true;
+          }
+          
+          // Cập nhật links
+          if (this.updatePlatformLinks(container, data)) {
+            updated = true;
+          }
+          
+          // Đánh dấu container đã cập nhật
+          if (updated) {
+            container.setAttribute('data-updated', 'true');
+            container.setAttribute('data-updated-time', new Date().toISOString());
+            if (ProductApp.config.debug) console.log(`Container ${containerId} đã được cập nhật thành công`);
+          }
+          
+          return updated;
+        } catch (error) {
+          console.error(`Lỗi khi cập nhật container ${containerId}:`, error);
           return false;
         }
-        
-        const data = ProductApp.dataManager.getDataForContainer(containerId);
-        if (!data) {
-          if (ProductApp.config.debug) console.log(`Không có dữ liệu cho container: ${containerId}`);
-          return false;
-        }
-        
-        let updated = false;
-        
-        // Cập nhật giá
-        if (this.updateMoneyValue(container, data.money)) {
-          updated = true;
-        }
-        
-        // Cập nhật link
-        if (this.updatePlatformLinks(container, data)) {
-          updated = true;
-        }
-        
-        return updated;
       },
 
-      // Cập nhật tất cả container
+      // Cập nhật tất cả containers
       updateAllContainers: function() {
-        if (!ProductApp.dataManager.data) {
-          console.warn('Không có dữ liệu để cập nhật containers');
-          return;
-        }
-        
-        // Lấy danh sách containers từ dữ liệu
-        const containerIds = Object.keys(ProductApp.dataManager.data).filter(key => !key.startsWith('_'));
-        
-        let updatedCount = 0;
-        containerIds.forEach(containerId => {
-          if (this.updateContainer(containerId)) {
-            updatedCount++;
-          }
-        });
-        
-        console.log(`Đã cập nhật ${updatedCount}/${containerIds.length} containers`);
-        
-        // GLOBAL HACK: Force target="_blank" cho toàn bộ trang
-        document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
-          link.setAttribute('target', '_blank');
-        });
-      }
-    },
-
-    // Quản lý tracking
-    trackingManager: {
-      // Ghi log click
-      logClick: function(productId, platform) {
         try {
-          const tracker = new Image();
-          tracker.src = `${ProductApp.config.loggerUrl}?product_id=${encodeURIComponent(productId)}&platform=${encodeURIComponent(platform)}&user_agent=${encodeURIComponent(navigator.userAgent)}&t=${Date.now()}`;
-          console.log(`Đã ghi log click cho ${productId} (${platform})`);
-        } catch(error) {
-          console.error('Lỗi khi gửi log:', error);
+          if (!ProductApp.dataManager.data) {
+            console.warn('Không có dữ liệu để cập nhật containers');
+            return 0;
+          }
+          
+          // Lấy danh sách IDs từ dữ liệu
+          const containerIds = Object.keys(ProductApp.dataManager.data).filter(key => !key.startsWith('_'));
+          
+          // Tìm tất cả containers trên trang có ID trùng với dữ liệu
+          let updatedCount = 0;
+          const existingContainers = [];
+          
+          // Cập nhật các container đã biết ID
+          containerIds.forEach(id => {
+            const container = document.getElementById(id);
+            if (container) {
+              existingContainers.push(id);
+              if (this.updateContainer(id)) {
+                updatedCount++;
+              }
+            }
+          });
+          
+          if (ProductApp.config.debug) {
+            console.log(`Đã cập nhật ${updatedCount}/${existingContainers.length} containers`);
+            if (existingContainers.length < containerIds.length) {
+              console.log(`Không tìm thấy ${containerIds.length - existingContainers.length} containers trên trang`);
+              console.log('IDs không tìm thấy:', containerIds.filter(id => !existingContainers.includes(id)));
+            }
+          }
+          
+          // Force-fix: Thêm xử lý click cho tất cả hình ảnh Shopee/TikTok
+          this.fixAllPlatformImages();
+          
+          return updatedCount;
+        } catch (error) {
+          console.error('Lỗi khi cập nhật containers:', error);
+          return 0;
+        }
+      },
+      
+      // Fix tất cả hình ảnh platform
+      fixAllPlatformImages: function() {
+        try {
+          // Tìm tất cả hình ảnh Shopee và TikTok
+          const shopeeImages = document.querySelectorAll('img[src*="shopee"], img[alt*="shopee"]');
+          const tiktokImages = document.querySelectorAll('img[src*="tiktok"], img[alt*="tiktok"]');
+          
+          if (ProductApp.config.debug) {
+            console.log(`Tìm thấy ${shopeeImages.length} hình ảnh Shopee và ${tiktokImages.length} hình ảnh TikTok để fix`);
+          }
+          
+          // Xử lý hình ảnh Shopee
+          shopeeImages.forEach(img => {
+            this.fixPlatformImage(img, 'shopee');
+          });
+          
+          // Xử lý hình ảnh TikTok
+          tiktokImages.forEach(img => {
+            this.fixPlatformImage(img, 'tiktok');
+          });
+          
+          // Force all links to open in new tab
+          document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
+            if (link.target !== '_blank') {
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener');
+            }
+          });
+        } catch (error) {
+          console.error('Lỗi khi fix hình ảnh platform:', error);
+        }
+      },
+      
+      // Fix một hình ảnh platform
+      fixPlatformImage: function(img, platform) {
+        try {
+          // Đã có click handler
+          if (img.hasAttribute('data-fixed')) return;
+          
+          // Tìm container
+          let container = img;
+          let containerId = null;
+          
+          while (container && container !== document.body) {
+            if (container.id && container.id.startsWith('sp')) {
+              containerId = container.id;
+              break;
+            }
+            container = container.parentElement;
+          }
+          
+          // Không tìm thấy container
+          if (!containerId) return;
+          
+          // Lấy dữ liệu
+          const data = ProductApp.dataManager.getDataForContainer(containerId);
+          if (!data) return;
+          
+          // Lấy link tương ứng
+          const url = platform === 'shopee' ? data.link_shopee : data.link_tiktok;
+          if (!url) return;
+          
+          // Kiểm tra nếu nằm trong thẻ A
+          let isInsideLink = false;
+          let parent = img.parentNode;
+          
+          while (parent && parent !== document.body) {
+            if (parent.tagName === 'A') {
+              isInsideLink = true;
+              
+              // Cập nhật link
+              parent.href = url;
+              parent.setAttribute('target', '_blank');
+              parent.setAttribute('rel', 'noopener');
+              
+              img.setAttribute('data-fixed', 'true');
+              if (ProductApp.config.debug) console.log(`Fix: Đã cập nhật link cho hình ${platform} trong container ${containerId}`);
+              break;
+            }
+            parent = parent.parentNode;
+          }
+          
+          // Nếu không nằm trong link
+          if (!isInsideLink) {
+            // Tạo wrapper
+            const wrapper = document.createElement('a');
+            wrapper.href = url;
+            wrapper.setAttribute('target', '_blank');
+            wrapper.setAttribute('rel', 'noopener');
+            wrapper.style.cursor = 'pointer';
+            
+            // Thay thế hình ảnh
+            try {
+              img.parentNode.insertBefore(wrapper, img);
+              wrapper.appendChild(img);
+              img.setAttribute('data-fixed', 'true');
+              if (ProductApp.config.debug) console.log(`Fix: Đã tạo wrapper link cho hình ${platform} trong container ${containerId}`);
+            } catch (err) {
+              // Fallback: Thêm click handler trực tiếp
+              img.style.cursor = 'pointer';
+              img.onclick = function() {
+                window.open(url, '_blank');
+              };
+              img.setAttribute('data-fixed', 'true');
+              if (ProductApp.config.debug) console.log(`Fix: Đã thêm click handler cho hình ${platform} trong container ${containerId}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Lỗi khi fix hình ảnh ${platform}:`, error);
         }
       }
     },
 
-    // Lazy loading các container
+    // Lazy loading
     lazyLoadManager: {
       observer: null,
       
-      // Khởi tạo intersection observer
+      // Khởi tạo observer
       init: function() {
         if ('IntersectionObserver' in window) {
-          this.observer = new IntersectionObserver(this.onIntersection, {
-            rootMargin: '200px',
-            threshold: 0.01
+          this.observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const containerId = entry.target.id;
+                if (containerId) {
+                  ProductApp.uiManager.updateContainer(containerId);
+                  observer.unobserve(entry.target);
+                  if (ProductApp.config.debug) console.log(`Lazy load: Đã tải container ${containerId}`);
+                }
+              }
+            });
+          }, {
+            rootMargin: '200px', // Tải sớm hơn khi element cách viewport 200px
+            threshold: 0.01      // Chỉ cần hiển thị 1% đã tải
           });
           
           // Tìm và theo dõi tất cả containers
           this.observeContainers();
         } else {
           // Fallback cho trình duyệt cũ
+          if (ProductApp.config.debug) console.log('Trình duyệt không hỗ trợ IntersectionObserver, tải tất cả containers');
           ProductApp.uiManager.updateAllContainers();
         }
       },
       
-      // Xử lý khi container xuất hiện trong viewport
-      onIntersection: function(entries, observer) {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const containerId = entry.target.id;
-            ProductApp.uiManager.updateContainer(containerId);
-            observer.unobserve(entry.target);
-            if (ProductApp.config.debug) console.log(`Lazy load: Đã tải container ${containerId}`);
-          }
-        });
-      },
-      
-      // Theo dõi tất cả container
+      // Theo dõi các containers
       observeContainers: function() {
-        if (!this.observer) return;
-        
-        // Tìm theo nhiều pattern container ID
-        const containerSelectors = ['[id^="sp"]', '.product-container', '[data-product]'];
-        containerSelectors.forEach(selector => {
-          document.querySelectorAll(selector).forEach(container => {
-            this.observer.observe(container);
-            if (ProductApp.config.debug) console.log(`Đang theo dõi container: ${container.id || 'không có ID'}`);
+        try {
+          if (!this.observer) return;
+          
+          // Tìm theo nhiều pattern container ID
+          const containerPatterns = [
+            '[id^="sp"]',           // sp01, sp02, ...
+            '[id*="product"]',      // product1, my-product, ...
+            '.product-container',   // Class product-container
+            '[data-product]'        // Có attribute data-product
+          ];
+          
+          const observedContainers = new Set();
+          
+          // Áp dụng tất cả patterns
+          containerPatterns.forEach(selector => {
+            try {
+              document.querySelectorAll(selector).forEach(container => {
+                if (container.id && !observedContainers.has(container.id)) {
+                  this.observer.observe(container);
+                  observedContainers.add(container.id);
+                  if (ProductApp.config.debug) console.log(`Đang theo dõi container: ${container.id}`);
+                }
+              });
+            } catch (err) {
+              console.error(`Lỗi khi tìm containers với selector ${selector}:`, err);
+            }
           });
-        });
+          
+          // Thêm theo dõi containers từ dữ liệu
+          if (ProductApp.dataManager.data) {
+            const containerIds = Object.keys(ProductApp.dataManager.data).filter(key => !key.startsWith('_'));
+            containerIds.forEach(id => {
+              const container = document.getElementById(id);
+              if (container && !observedContainers.has(id)) {
+                this.observer.observe(container);
+                observedContainers.add(id);
+                if (ProductApp.config.debug) console.log(`Đang theo dõi container từ dữ liệu: ${id}`);
+              }
+            });
+          }
+          
+          if (ProductApp.config.debug) console.log(`Tổng số containers được theo dõi: ${observedContainers.size}`);
+        } catch (error) {
+          console.error('Lỗi khi khởi tạo lazy loading:', error);
+        }
       }
     },
-
-    // Khởi tạo ứng dụng
-    init: function() {
-      console.log('Khởi tạo ProductApp v' + this.config.version);
-      
-      // Tải dữ liệu từ cache trước
-      const cacheLoaded = this.dataManager.loadFromCache();
-      if (cacheLoaded) {
-        console.log('Đã tải dữ liệu từ cache');
-        this.uiManager.updateAllContainers();
-      }
-      
-      // Khởi tạo lazy loading
-      this.lazyLoadManager.init();
-      
-      // Tải dữ liệu mới từ server
-      setTimeout(() => {
-        this.dataManager.loadFromServer()
-          .then(() => {
-            console.log('Đã tải dữ liệu mới từ server');
-            this.uiManager.updateAllContainers();
-          })
-          .catch(error => {
-            console.error('Không thể tải dữ liệu mới:', error);
-          });
-      }, cacheLoaded ? 500 : 0);
-      
-      // Thêm interval polling để cập nhật dữ liệu định kỳ
-      setInterval(() => {
-        this.dataManager.loadFromServer()
-          .then(() => {
-            console.log('Đã tải dữ liệu mới từ server (polling)');
-            this.uiManager.updateAllContainers();
-          })
-          .catch(error => {
-            console.error('Lỗi polling:', error);
-          });
-      }, this.config.pollInterval);
-      
-      // Force kiểm tra links mỗi 10 giây
-      setInterval(() => {
-        document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
-          if (link.target !== '_blank') {
-            link.setAttribute('target', '_blank');
-            if (this.config.debug) console.log('Đã phát hiện và sửa link không có target=_blank:', link.href);
-          }
-        });
-      }, 10000);
-    }
-  };
-
-  // Gán vào window để tránh chạy lại
-  window.ProductApp = ProductApp;
-  
-  // Khởi tạo ngay
-  ProductApp.init();
-})();
+    
+    // Xử lý DOM
+    domManager: {
+      // Đợi DOM sẵn sàng
+      onDomReady: function(callback)

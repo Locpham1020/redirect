@@ -1,64 +1,9 @@
-/**
- * DỮ LIỆU SẢN PHẨM - CẬP NHẬT THỦ CÔNG
- * Version: 4.2.0
- * Cập nhật lần cuối: 30/04/2025
- */
-
-const PRODUCT_DATA = {
-  // Container SP01
+{
   "sp01": {
     "id_container": "sp01",
-    "money": "150,000",
-    "link_shopee": "https://shopee.vn/product-1",
-    "link_tiktok": "https://www.tiktok.com/@username/video/123456"
-  },
-  
-  // Container SP02
-  "sp02": {
-    "id_container": "sp02",
-    "money": "199,000",
-    "link_shopee": "https://shopee.vn/product-2",
-    "link_tiktok": "https://www.tiktok.com/@username/video/234567"
-  },
-  
-  // Container SP03
-  "sp03": {
-    "id_container": "sp03",
-    "money": "299,000",
-    "link_shopee": "https://shopee.vn/product-3",
-    "link_tiktok": "https://www.tiktok.com/@username/video/345678"
-  },
-  
-  // Container SP04
-  "sp04": {
-    "id_container": "sp04",
-    "money": "450,000",
-    "link_shopee": "https://shopee.vn/product-4",
-    "link_tiktok": "https://www.tiktok.com/@username/video/456789"
-  },
-  
-  // Container SP05
-  "sp05": {
-    "id_container": "sp05",
-    "money": "350,000",
-    "link_shopee": "https://shopee.vn/product-5",
-    "link_tiktok": "https://www.tiktok.com/@username/video/567890"
-  },
-  
-  // Container SP06
-  "sp06": {
-    "id_container": "sp06",
-    "money": "250,000",
-    "link_shopee": "https://shopee.vn/product-6",
-    "link_tiktok": "https://www.tiktok.com/@username/video/678901"
-  },
-  
-  // Thêm các container khác nếu cần
-  
-  // Metadata
-  "_metadata": {
-    "version": "4.2.0",
-    "updated_at": "2025-04-30T10:00:00.000Z",
-    "updated_by": "Manual Update"
+    "money": "200",
+    "link_shopee": "https://translate.google.com/?hl=vi&sl=vi&tl=en&op=translate",
+    "link_tiktok": "https://www.tiktok.com/?lang=vi-VN",
+    "last_updated": "2025-04-29T10:00:00Z"
   }
-};
+}

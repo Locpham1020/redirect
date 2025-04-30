@@ -1,7 +1,6 @@
 /**
  * Product Display & Tracking Application
  * Version: 3.0.0
- * Handles data loading, UI updates, and click tracking
  */
 
 (function() {
@@ -15,8 +14,8 @@
   const ProductApp = {
     // Cấu hình
     config: {
-      // *** THAY ĐỔI dataUrl THÀNH URL WEB APP CỦA BẠN ***
-      dataUrl: 'https://script.google.com/macros/s/AKfycbyCaZ6lfRXdHSSD-VJLU6CF_ZiD1Qi--flHAYVIM8SFDf8dJaujBulFPUgQY1ePlT9ZVw/exec',
+      // *** URL WEB APP TỪNG BƯỚC 2 ***
+      dataUrl: 'https://script.google.com/macros/s/AKfycbyCaZiTfkXdHGSO-YDLUbCF_ziDiQi-_flnAVVIMBSPD7&4JarjBulFPUgMYieP1T9ZYw/exec',
       loggerUrl: 'https://script.google.com/macros/s/AKfycbwiTGvwlmbqReewb4XXs5wJ3txCFrHk4HKaqNVBCF81U-Oly1H_Hey-tIFUq1uT535kLA/exec',
       cacheKey: 'product_data_v3',
       cacheExpiration: 1 * 60 * 1000, // 1 phút 
@@ -65,7 +64,7 @@
 
       // Tải dữ liệu từ Google Sheet Web App
       loadFromServer: function() {
-        // Thêm timestamp và random để tránh cache hoàn toàn
+        // Thêm timestamp và random để tránh cache
         const cacheBuster = Date.now() + Math.random().toString(36).substring(2, 15);
         return fetch(ProductApp.config.dataUrl + '?t=' + cacheBuster)
           .then(response => response.json())
@@ -149,7 +148,7 @@
         return 'unknown';
       },
 
-      // Cập nhật link cho các platform - Cải tiến
+      // Cập nhật link cho các platform
       updatePlatformLinks: function(container, data) {
         let updated = false;
         
@@ -197,18 +196,12 @@
               console.error('Lỗi khi tạo link cho', platform, err);
             }
           }
-          
-          // Thêm debug
-          if (ProductApp.config.debug && updated) {
-            console.log(`Đã cập nhật link ${platform} (${url}) cho container ${container.id}`);
-          }
         }
         
         // FORCE thêm target="_blank" cho tất cả links
         setTimeout(() => {
           container.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
             link.setAttribute('target', '_blank');
-            if (ProductApp.config.debug) console.log('FORCE set target=_blank cho:', link.href);
           });
         }, 100);
         
@@ -292,7 +285,7 @@
       init: function() {
         if ('IntersectionObserver' in window) {
           this.observer = new IntersectionObserver(this.onIntersection, {
-            rootMargin: '200px', // Tăng khoảng cách để tải sớm hơn
+            rootMargin: '200px',
             threshold: 0.01
           });
           
@@ -355,7 +348,7 @@
           .catch(error => {
             console.error('Không thể tải dữ liệu mới:', error);
           });
-      }, cacheLoaded ? 500 : 0); // Nếu có cache, đợi 500ms sau mới tải
+      }, cacheLoaded ? 500 : 0);
       
       // Thêm interval polling để cập nhật dữ liệu định kỳ
       setInterval(() => {

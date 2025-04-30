@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "updated": "2025-04-30",
+  "products": {
+    "sp01": {
+      "price": "150,000",
+      "shopee_link": "https://shopee.vn/product-1",
+      "tiktok_link": "https://www.tiktok.com/@username/video/123456"
+    },
+    "sp02": {
+      "price": "199,000",
+      "shopee_link": "https://shopee.vn/product-2",
+      "tiktok_link": "https://www.tiktok.com/@username/video/234567"
+    },
+    "sp03": {
+      "price": "299,000",
+      "shopee_link": "https://shopee.vn/product-3",
+      "tiktok_link": "https://www.tiktok.com/@username/video/345678"
+    },
+    "sp04": {
+      "price": "450,000",
+      "shopee_link": "https://shopee.vn/product-4",
+      "tiktok_link": "https://www.tiktok.com/@username/video/456789"
+    },
+    "sp05": {
+      "price": "350,000",
+      "shopee_link": "https://shopee.vn/product-5",
+      "tiktok_link": "https://www.tiktok.com/@username/video/567890"
+    },
+    "sp06": {
+      "price": "250,000",
+      "shopee_link": "https://shopee.vn/product-6",
+      "tiktok_link": "https://www.tiktok.com/@username/video/678901"
+    }
+  }
+}

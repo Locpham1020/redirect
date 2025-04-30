@@ -94,8 +94,8 @@
             return response.json();
           })
           .then(data => {
-            if (data.error || data.status === "error") {
-              throw new Error('API trả về lỗi: ' + (data.error || 'Không xác định'));
+            console.log('DỮ LIỆU NHẬN ĐƯỢC TỪ API:');
+            console.log(JSON.stringify(data, null, 2));
             }
             
             // Cập nhật timestamp

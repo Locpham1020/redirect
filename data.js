@@ -1,7 +1,7 @@
 var PRODUCT_DATA = {
   "sp01": {
     "id_container": "sp01",
-    "money": "200,000",
+    "money": "205,000",
     "link_shopee": "https://www.tiktok.com", 
     "link_tiktok": "https://shopee.vn"
   },

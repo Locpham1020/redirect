@@ -1,4 +1,4 @@
-const productData = {
+handleProductData({
   "sp01": {
     "price": "999.000₫",
     "link_shopee": "https://shopee.vn/product1",
@@ -9,4 +9,4 @@ const productData = {
     "link_shopee": "https://shopee.vn/product2",
     "link_tiktok": "https://tiktok.com/product2"
   }
-};
+});

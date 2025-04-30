@@ -481,6 +481,274 @@
       observer: null,
       
       // Khởi tạo observer
-      init: function() {
-        if ('IntersectionObserver' in window) {
-          this
+     init: function() {
+       if ('IntersectionObserver' in window) {
+         this.observer = new IntersectionObserver((entries, observer) => {
+           entries.forEach(entry => {
+             if (entry.isIntersecting) {
+               const containerId = entry.target.id;
+               if (containerId) {
+                 ProductApp.uiManager.updateContainer(containerId);
+                 observer.unobserve(entry.target);
+                 if (ProductApp.config.debug) console.log(`Lazy load: Đã tải container ${containerId}`);
+               }
+             }
+           });
+         }, {
+           rootMargin: '200px', // Tải sớm hơn khi element cách viewport 200px
+           threshold: 0.01      // Chỉ cần hiển thị 1% đã tải
+         });
+         
+         // Tìm và theo dõi tất cả containers
+         this.observeContainers();
+       } else {
+         // Fallback cho trình duyệt cũ
+         if (ProductApp.config.debug) console.log('Trình duyệt không hỗ trợ IntersectionObserver, tải tất cả containers');
+         ProductApp.uiManager.updateAllContainers();
+       }
+     },
+     
+     // Theo dõi các containers
+     observeContainers: function() {
+       try {
+         if (!this.observer) return;
+         
+         // Tìm theo nhiều pattern container ID
+         const containerPatterns = [
+           '[id^="sp"]',           // sp01, sp02, ...
+           '[id*="product"]',      // product1, my-product, ...
+           '.product-container',   // Class product-container
+           '[data-product]'        // Có attribute data-product
+         ];
+         
+         const observedContainers = new Set();
+         
+         // Áp dụng tất cả patterns
+         containerPatterns.forEach(selector => {
+           try {
+             document.querySelectorAll(selector).forEach(container => {
+               if (container.id && !observedContainers.has(container.id)) {
+                 this.observer.observe(container);
+                 observedContainers.add(container.id);
+                 if (ProductApp.config.debug) console.log(`Đang theo dõi container: ${container.id}`);
+               }
+             });
+           } catch (err) {
+             console.error(`Lỗi khi tìm containers với selector ${selector}:`, err);
+           }
+         });
+         
+         // Thêm theo dõi containers từ dữ liệu
+         if (ProductApp.dataManager.data) {
+           const containerIds = Object.keys(ProductApp.dataManager.data).filter(key => !key.startsWith('_'));
+           containerIds.forEach(id => {
+             const container = document.getElementById(id);
+             if (container && !observedContainers.has(id)) {
+               this.observer.observe(container);
+               observedContainers.add(id);
+               if (ProductApp.config.debug) console.log(`Đang theo dõi container từ dữ liệu: ${id}`);
+             }
+           });
+         }
+         
+         if (ProductApp.config.debug) console.log(`Tổng số containers được theo dõi: ${observedContainers.size}`);
+       } catch (error) {
+         console.error('Lỗi khi khởi tạo lazy loading:', error);
+       }
+     }
+   },
+   
+   // Xử lý DOM
+   domManager: {
+     // Đợi DOM sẵn sàng
+     onDomReady: function(callback) {
+       if (document.readyState === 'loading') {
+         document.addEventListener('DOMContentLoaded', callback);
+       } else {
+         callback();
+       }
+     },
+     
+     // Theo dõi các thay đổi trên DOM (thêm containers mới)
+     observeDomChanges: function() {
+       try {
+         if (!('MutationObserver' in window)) return;
+         
+         const observer = new MutationObserver((mutations) => {
+           let needsContainerUpdate = false;
+           
+           mutations.forEach(mutation => {
+             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+               for (let i = 0; i < mutation.addedNodes.length; i++) {
+                 const node = mutation.addedNodes[i];
+                 if (node.nodeType === 1) { // Phần tử HTML
+                   // Kiểm tra xem có phải container mới không
+                   if (node.id && node.id.startsWith('sp')) {
+                     needsContainerUpdate = true;
+                     break;
+                   }
+                   
+                   // Hoặc chứa containers con
+                   if (node.querySelector && (
+                       node.querySelector('[id^="sp"]') || 
+                       node.querySelector('.product-container') ||
+                       node.querySelector('[data-product]'))) {
+                     needsContainerUpdate = true;
+                     break;
+                   }
+                 }
+               }
+             }
+           });
+           
+           // Nếu có thay đổi, cập nhật lại các containers
+           if (needsContainerUpdate) {
+             if (ProductApp.config.debug) console.log('Phát hiện thay đổi DOM: cập nhật containers');
+             // Đợi một chút để DOM hoàn thành các thay đổi
+             setTimeout(() => {
+               ProductApp.lazyLoadManager.observeContainers();
+               ProductApp.uiManager.updateAllContainers();
+             }, 500);
+           }
+         });
+         
+         // Theo dõi toàn bộ body
+         observer.observe(document.body, {
+           childList: true,
+           subtree: true
+         });
+         
+         if (ProductApp.config.debug) console.log('Đã bắt đầu theo dõi thay đổi DOM');
+       } catch (error) {
+         console.error('Lỗi khi theo dõi DOM:', error);
+       }
+     },
+     
+     // Force fix cho các links
+     forceFixLinks: function() {
+       try {
+         // Tìm tất cả links liên quan đến Shopee/TikTok
+         document.querySelectorAll('a[href*="shopee"], a[href*="tiktok"]').forEach(link => {
+           // Đảm bảo mở trong tab mới
+           if (link.target !== '_blank') {
+             link.setAttribute('target', '_blank');
+             if (ProductApp.config.debug) console.log('DOM Fix: Đã set target=_blank cho:', link.href);
+           }
+           
+           // Thêm tracking nếu chưa có
+           if (!link.hasAttribute('data-tracked')) {
+             const href = link.href.toLowerCase();
+             const platform = href.includes('shopee') ? 'shopee' : 'tiktok';
+             
+             // Tìm container ID
+             let containerId = null;
+             let parent = link;
+             while (parent && parent !== document.body) {
+               if (parent.id && parent.id.startsWith('sp')) {
+                 containerId = parent.id;
+                 break;
+               }
+               parent = parent.parentElement;
+             }
+             
+             // Thêm tracking
+             if (containerId) {
+               link.addEventListener('click', function(e) {
+                 ProductApp.trackingManager.logClick(containerId, platform);
+               });
+               link.setAttribute('data-tracked', 'true');
+               if (ProductApp.config.debug) console.log(`DOM Fix: Đã thêm tracking cho ${platform} link trong container ${containerId}`);
+             }
+           }
+         });
+       } catch (error) {
+         console.error('Lỗi khi fix links:', error);
+       }
+     }
+   },
+
+   // Khởi tạo ứng dụng
+   init: function() {
+     try {
+       console.log(`Khởi tạo ProductApp v${this.config.version}`);
+       
+       // Xóa các phiên bản cache cũ
+       try {
+         localStorage.removeItem('product_data_v1');
+         localStorage.removeItem('product_data_v2');
+         localStorage.removeItem('product_data_v3');
+       } catch(e) {}
+       
+       // Đánh dấu đã khởi tạo
+       this.config.initialized = true;
+       
+       // Đợi DOM sẵn sàng
+       this.domManager.onDomReady(() => {
+         // Tải dữ liệu từ cache nếu có
+         const cacheLoaded = this.dataManager.loadFromCache();
+         
+         // Nếu có cache, cập nhật giao diện ngay
+         if (cacheLoaded) {
+           console.log('Đã tải dữ liệu từ cache');
+           this.uiManager.updateAllContainers();
+         }
+         
+         // Theo dõi thay đổi DOM
+         this.domManager.observeDomChanges();
+         
+         // Khởi tạo lazy loading
+         this.lazyLoadManager.init();
+         
+         // Force fix links
+         this.domManager.forceFixLinks();
+         
+         // Tải dữ liệu mới từ server (ngay lập tức nếu không có cache)
+         setTimeout(() => {
+           this.dataManager.loadFromServer()
+             .then(() => {
+               console.log('Đã tải dữ liệu mới từ server');
+               this.uiManager.updateAllContainers();
+               this.lazyLoadManager.observeContainers();
+             })
+             .catch(error => {
+               console.error('Không thể tải dữ liệu mới:', error);
+             });
+         }, cacheLoaded ? 1000 : 100);
+         
+         // Thiết lập polling để cập nhật dữ liệu định kỳ
+         setInterval(() => {
+           // Kiểm tra xem đã đến lúc check dữ liệu mới chưa
+           const now = Date.now();
+           if (now - this.dataManager.lastChecktime >= this.config.pollInterval) {
+             this.dataManager.loadFromServer()
+               .then(() => {
+                 console.log('Đã tải dữ liệu mới từ server (polling)');
+                 this.uiManager.updateAllContainers();
+                 this.lazyLoadManager.observeContainers();
+               })
+               .catch(error => {
+                 console.error('Lỗi polling:', error);
+               });
+           }
+         }, this.config.pollInterval);
+         
+         // Force kiểm tra links liên tục
+         setInterval(() => {
+           this.domManager.forceFixLinks();
+         }, 5000);
+       });
+       
+       return true;
+     } catch (error) {
+       console.error('Lỗi khởi tạo ProductApp:', error);
+       return false;
+     }
+   }
+ };
+
+ // Gán vào window để tránh chạy lại
+ window.ProductApp = ProductApp;
+ 
+ // Khởi tạo ngay
+ ProductApp.init();
+})();
